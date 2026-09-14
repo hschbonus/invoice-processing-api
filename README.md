@@ -1,5 +1,7 @@
 # Invoice Processing API
 
+[![CI](https://github.com/hschbonus/invoice-processing-api/actions/workflows/ci.yml/badge.svg)](https://github.com/hschbonus/invoice-processing-api/actions/workflows/ci.yml)
+
 API Python de démonstration qui reçoit des documents structurés, contrôle leurs
 données et restitue un résultat normalisé. Le cas d'usage présenté est l'ingestion de
 factures fournisseurs UBL fictives.

@@ -127,6 +127,23 @@ poetry run pytest
 poetry run ruff check .
 ```
 
+## Exécution avec Docker
+
+L'environnement conteneurisé démarre l'API et PostgreSQL, applique les migrations puis
+conserve séparément les données de la base et les documents déposés :
+
+```powershell
+docker compose up --build
+```
+
+L'API répond ensuite sur `http://127.0.0.1:8000`, avec sa documentation interactive
+sur `http://127.0.0.1:8000/docs`. Les identifiants PostgreSQL présents dans
+`compose.yaml` sont uniquement ceux de l'environnement local de démonstration.
+
+```powershell
+docker compose down
+```
+
 ## Suivi
 
 Le backlog canonique est celui du projet parent : `../BACKLOG.md`, phase 2 (`P2.*`).

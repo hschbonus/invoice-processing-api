@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+.pytest_cache
+.test-storage
+__pycache__
+*.pyc
+.env
+storage
+tests
+samples
+AGENTS.md
+BACKLOG.md
+BUSINESS.md
+CLAUDE.md

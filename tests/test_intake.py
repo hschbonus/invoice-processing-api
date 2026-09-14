@@ -29,7 +29,9 @@ def remove_storage_dir(storage_dir: Path) -> None:
         parent.rmdir()
 
 
-def build_client(storage_dir: Path) -> tuple[TestClient, sessionmaker[Session]]:
+def build_client(
+    storage_dir: Path, processing_mode: str = "sync"
+) -> tuple[TestClient, sessionmaker[Session]]:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -48,11 +50,41 @@ def build_client(storage_dir: Path) -> tuple[TestClient, sessionmaker[Session]]:
             database_url="sqlite://",
             storage_dir=storage_dir,
             max_upload_bytes=4096,
+            processing_mode=processing_mode,
         )
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_settings] = override_settings
     return TestClient(app), testing_session
+
+
+def test_async_upload_enqueues_job_and_returns_queued_status(monkeypatch) -> None:
+    storage_dir = new_storage_dir()
+    client, testing_session = build_client(storage_dir, processing_mode="celery")
+    enqueued_job_ids: list[uuid.UUID] = []
+    monkeypatch.setattr("app.dispatch.enqueue_job", enqueued_job_ids.append)
+
+    response = client.post(
+        "/v1/documents",
+        files={
+            "file": (
+                "invoice.xml",
+                (SAMPLES / "valid-invoice.xml").read_bytes(),
+                "application/xml",
+            )
+        },
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "queued"
+    assert enqueued_job_ids == [uuid.UUID(response.json()["job_id"])]
+    with testing_session() as session:
+        job = session.scalar(select(ProcessingJob))
+    assert job is not None
+    assert job.status == ProcessingStatus.QUEUED
+    assert job.attempts == 0
+    app.dependency_overrides.clear()
+    remove_storage_dir(storage_dir)
 
 
 def test_upload_persists_document_and_queues_job() -> None:

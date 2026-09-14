@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     )
     storage_dir: Path = Path("storage")
     max_upload_bytes: int = 5 * 1024 * 1024
+    processing_mode: Literal["sync", "celery"] = "sync"
+    celery_broker_url: str = "redis://localhost:6379/0"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

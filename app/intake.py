@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import Document, ProcessingJob
-from app.processing import process_job
 
 ALLOWED_MEDIA_TYPES = {"application/xml", "text/xml"}
 CHUNK_SIZE = 64 * 1024
@@ -91,7 +90,7 @@ def save_document(
                 raise
             return existing_job, True
         session.refresh(job)
-        return process_job(job, session), False
+        return job, False
     except Exception:
         session.rollback()
         destination.unlink(missing_ok=True)

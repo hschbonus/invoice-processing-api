@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.dispatch import dispatch_job
 from app.intake import save_document
 from app.models import ProcessingJob
 from app.schemas import IntakeAccepted, JobDetail
@@ -40,6 +41,8 @@ def create_document(
     request_settings: Annotated[Settings, Depends(get_settings)],
 ) -> IntakeAccepted:
     job, deduplicated = save_document(file, request_settings, db)
+    if not deduplicated:
+        job = dispatch_job(job, request_settings, db)
     return IntakeAccepted(
         document_id=job.document_id,
         job_id=job.id,

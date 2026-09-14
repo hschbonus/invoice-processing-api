@@ -14,9 +14,10 @@ plateforme agréée et ne garantit aucune conformité fiscale.
 
 Le socle FastAPI expose un endpoint de santé, un endpoint d'upload XML renvoyant
 `202 Accepted` et un endpoint de consultation du résultat. Les documents et
-traitements sont persistés avec SQLAlchemy. Une première version synchrone détecte les
-factures UBL, extrait les données retenues et produit des anomalies structurées.
-Celery/Redis reste une extension ultérieure du même pipeline.
+traitements sont persistés avec SQLAlchemy. Le pipeline détecte les factures UBL,
+extrait les données retenues et produit des anomalies structurées. Il fonctionne en
+mode synchrone seul ou, dans l'environnement Docker, avec une file Celery/Redis et un
+worker séparé.
 
 ## Besoin de marché observé
 
@@ -39,11 +40,11 @@ client pour ce projet ni l'intention d'en faire un produit commercial.
 ### Inclus
 
 - ingestion de factures UBL XML fictives ;
-- traitement synchrone initial avec suivi d'état ;
+- traitement synchrone ou asynchrone avec suivi d'état ;
 - contrôles de cohérence et anomalies structurées ;
 - résultat JSON récupérable par API ;
 - tests, conteneurisation simple, CI et documentation OpenAPI ;
-- ajout ultérieur et isolé de Celery/Redis si le parcours synchrone est maîtrisé.
+- file de tâches Celery/Redis isolée du cœur du traitement.
 
 ### Hors périmètre
 
@@ -60,8 +61,8 @@ client pour ce projet ni l'intention d'en faire un produit commercial.
 - FastAPI et Pydantic Settings ;
 - PostgreSQL, SQLAlchemy synchrone et Alembic ;
 - pytest et Ruff ;
-- Docker Compose et GitHub Actions (à venir) ;
-- Celery et Redis dans un second incrément seulement.
+- Docker Compose et GitHub Actions ;
+- Celery 5.6 et Redis pour l'exécution en arrière-plan.
 
 ## Installation
 
@@ -78,8 +79,9 @@ poetry run uvicorn app.main:app --reload
 La documentation interactive sera disponible sur `http://127.0.0.1:8000/docs`.
 
 La base attendue par défaut est PostgreSQL. Sa connexion et le stockage local sont
-configurables avec `DATABASE_URL`, `STORAGE_DIR` et `MAX_UPLOAD_BYTES` (voir
-`.env.example`).
+configurables avec `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_BYTES`,
+`PROCESSING_MODE` et `CELERY_BROKER_URL` (voir `.env.example`). Sans configuration,
+`PROCESSING_MODE=sync` garde un démarrage simple sans Redis.
 
 ```powershell
 poetry run alembic upgrade head
@@ -87,10 +89,11 @@ poetry run alembic upgrade head
 
 L'upload est disponible via `POST /v1/documents`. Il accepte actuellement un fichier
 XML de 5 Mio maximum et renvoie les identifiants du document et du traitement. Le
-traitement est exécuté dans la requête pour cette première version : le statut renvoyé
-est `succeeded` ou `failed`. `GET /v1/jobs/{job_id}` restitue ensuite son état et son
-résultat. Deux uploads au contenu identique réutilisent le document et le traitement
-existants ; la réponse l'indique avec `deduplicated: true`.
+traitement est exécuté dans la requête en mode `sync` : le statut renvoyé est
+`succeeded` ou `failed`. En mode `celery`, la réponse immédiate porte le statut
+`queued`, puis le worker traite le document. `GET /v1/jobs/{job_id}` restitue son état
+et son résultat. Deux uploads au contenu identique réutilisent le document et le
+traitement existants ; la réponse l'indique avec `deduplicated: true`.
 
 ```powershell
 curl.exe -F "file=@samples/ubl/valid-invoice.xml;type=application/xml" `
@@ -129,8 +132,9 @@ poetry run ruff check .
 
 ## Exécution avec Docker
 
-L'environnement conteneurisé démarre l'API et PostgreSQL, applique les migrations puis
-conserve séparément les données de la base et les documents déposés :
+L'environnement conteneurisé démarre l'API, PostgreSQL, Redis et un worker Celery.
+L'API applique les migrations avant son démarrage. Les données de la base, la file et
+les documents déposés sont conservés dans des volumes séparés :
 
 ```powershell
 docker compose up --build
@@ -138,7 +142,14 @@ docker compose up --build
 
 L'API répond ensuite sur `http://127.0.0.1:8000`, avec sa documentation interactive
 sur `http://127.0.0.1:8000/docs`. Les identifiants PostgreSQL présents dans
-`compose.yaml` sont uniquement ceux de l'environnement local de démonstration.
+`compose.yaml` sont uniquement ceux de l'environnement local de démonstration. Le
+worker Celery tourne dans un conteneur Linux : son exécution native sous Windows n'est
+pas prise en charge officiellement par Celery.
+
+Documentation de référence :
+
+- https://docs.celeryq.dev/en/stable/getting-started/
+- https://docs.celeryq.dev/en/v5.6.2/getting-started/backends-and-brokers/redis.html
 
 ```powershell
 docker compose down

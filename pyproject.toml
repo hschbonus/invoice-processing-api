@@ -1,0 +1,44 @@
+[project]
+name = "invoice-processing-api"
+version = "0.1.0"
+description = "Asynchronous invoice intake and validation API showcase"
+authors = [{ name = "Herve Schmidt" }]
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    "alembic>=1.16,<2.0",
+    "defusedxml>=0.7,<1.0",
+    "fastapi>=0.116,<1.0",
+    "pydantic-settings>=2.10,<3.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "python-multipart>=0.0.20,<1.0",
+    "sqlalchemy>=2.0,<3.0",
+    "uvicorn[standard]>=0.35,<1.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1.0",
+    "pytest>=8.4,<10.0",
+    "ruff>=0.12,<1.0",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0,<3.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["-p", "no:cacheprovider"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["pytest-cache-files-*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

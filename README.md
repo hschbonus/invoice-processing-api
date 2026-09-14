@@ -95,6 +95,12 @@ traitement est exécuté dans la requête en mode `sync` : le statut renvoyé es
 et son résultat. Deux uploads au contenu identique réutilisent le document et le
 traitement existants ; la réponse l'indique avec `deduplicated: true`.
 
+Le worker acquitte une tâche après son exécution et ne précharge qu'une tâche par
+processus. Une tâche déjà réussie est ignorée si elle est livrée une seconde fois. Les
+erreurs temporaires d'accès au stockage sont retentées trois fois avec un délai
+exponentiel ; un document XML invalide échoue immédiatement, car le rejouer ne
+changerait pas son contenu.
+
 ```powershell
 curl.exe -F "file=@samples/ubl/valid-invoice.xml;type=application/xml" `
   http://127.0.0.1:8000/v1/documents

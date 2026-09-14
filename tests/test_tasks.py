@@ -60,3 +60,22 @@ def test_worker_marks_job_failed_after_retry_limit(monkeypatch) -> None:
     assert job.status == ProcessingStatus.FAILED
     assert job.attempts == 1
     assert job.completed_at is not None
+
+
+def test_worker_ignores_an_already_successful_job(monkeypatch) -> None:
+    session_factory, job_id = build_job()
+    monkeypatch.setattr("app.tasks.SessionLocal", session_factory)
+    with session_factory() as session:
+        job = session.scalar(select(ProcessingJob).where(ProcessingJob.id == job_id))
+        assert job is not None
+        job.status = ProcessingStatus.SUCCEEDED
+        job.attempts = 1
+        session.commit()
+
+    process_document.run(str(job_id))
+
+    with session_factory() as session:
+        job = session.scalar(select(ProcessingJob).where(ProcessingJob.id == job_id))
+    assert job is not None
+    assert job.status == ProcessingStatus.SUCCEEDED
+    assert job.attempts == 1

@@ -10,6 +10,30 @@ Il s'agit d'une étude de cas technique personnelle fondée sur un scénario et 
 données fictifs. Le projet ne représente pas une mission client, ne constitue pas une
 plateforme agréée et ne garantit aucune conformité fiscale.
 
+## Le problème traité
+
+Un système de gestion ne doit pas immobiliser une requête HTTP pendant l'analyse d'un
+document fournisseur. Il doit accepter le fichier, conserver une trace du traitement,
+absorber un incident temporaire et restituer des anomalies exploitables sans confondre
+erreur technique et incohérence métier.
+
+Cette étude de cas matérialise ce parcours sur un périmètre volontairement réduit :
+
+1. recevoir et borner un fichier XML ;
+2. identifier un doublon par son contenu ;
+3. confier le traitement à un worker séparé ;
+4. extraire et contrôler un sous-ensemble UBL ;
+5. consulter un résultat normalisé ou relancer un échec.
+
+## Ce que le projet démontre
+
+- conception d'une API FastAPI documentée automatiquement avec OpenAPI ;
+- persistance PostgreSQL et migrations Alembic ;
+- séparation entre ingestion HTTP et traitement Celery ;
+- idempotence par empreinte SHA-256 et à la nouvelle livraison d'une tâche ;
+- reprises automatiques bornées et reprise manuelle contrôlée ;
+- tests automatisés, qualité de code et parcours Docker vérifiés par CI.
+
 ## État actuel
 
 Le socle FastAPI expose un endpoint de santé, un endpoint d'upload XML renvoyant
@@ -63,6 +87,33 @@ client pour ce projet ni l'intention d'en faire un produit commercial.
 - pytest et Ruff ;
 - Docker Compose et GitHub Actions ;
 - Celery 5.6 et Redis pour l'exécution en arrière-plan.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    C[Client API] -->|XML| A[FastAPI]
+    A -->|document et état| P[(PostgreSQL)]
+    A -->|fichier| S[(Stockage partagé)]
+    A -->|identifiant du job| R[(Redis)]
+    R --> W[Worker Celery]
+    W -->|lit| S
+    W -->|résultat et anomalies| P
+    C -->|consulte le job| A
+```
+
+Redis transporte uniquement les messages. PostgreSQL reste la source de vérité pour
+l'état et le résultat, ce qui évite de dépendre du backend de résultats Celery. Le
+traitement reste une fonction Python indépendante : le mode `sync` permet de
+l'exécuter sans broker, tandis que le mode `celery` change seulement la façon de le
+déclencher.
+
+| Décision | Pourquoi | Limite assumée |
+|---|---|---|
+| SQLAlchemy synchrone | Le travail lourd est sorti de la requête ; une couche SQL asynchrone n'apporterait pas de preuve utile ici | Les accès SQL restent bloquants dans chaque processus |
+| Redis comme broker | Mise en route courte et lisible pour le démonstrateur | RabbitMQ serait à évaluer pour d'autres garanties d'exploitation |
+| Stockage par volume partagé | Rend le flux local concret sans fournisseur cloud | À remplacer par un stockage objet pour plusieurs machines |
+| Sous-ensemble UBL | Permet de démontrer parsing, normalisation et contrôles | Ce n'est pas une validation réglementaire complète |
 
 ## Installation
 
@@ -140,6 +191,10 @@ poetry run pytest
 poetry run ruff check .
 ```
 
+La suite compte actuellement 14 tests. La CI exécute également les migrations sur une
+vraie instance PostgreSQL, construit l'image, démarre toute la stack Docker puis
+vérifie un upload traité par le worker Celery.
+
 ## Exécution avec Docker
 
 L'environnement conteneurisé démarre l'API, PostgreSQL, Redis et un worker Celery.
@@ -160,6 +215,15 @@ Documentation de référence :
 
 - https://docs.celeryq.dev/en/stable/getting-started/
 - https://docs.celeryq.dev/en/v5.6.2/getting-started/backends-and-brokers/redis.html
+
+### Parcours de démonstration
+
+1. ouvrir `http://127.0.0.1:8000/docs` ;
+2. envoyer `samples/ubl/valid-invoice.xml` avec `POST /v1/documents` ;
+3. copier le `job_id` de la réponse `202 Accepted` ;
+4. appeler `GET /v1/jobs/{job_id}` jusqu'au statut `succeeded` ;
+5. comparer avec `invalid-business-invoice.xml` puis `malformed-invoice.xml` pour
+   observer la différence entre anomalies métier et échec technique.
 
 ```powershell
 docker compose down

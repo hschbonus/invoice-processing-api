@@ -101,6 +101,10 @@ erreurs temporaires d'accès au stockage sont retentées trois fois avec un dél
 exponentiel ; un document XML invalide échoue immédiatement, car le rejouer ne
 changerait pas son contenu.
 
+Un opérateur peut relancer explicitement un traitement en échec avec
+`POST /v1/jobs/{job_id}/retry`. L'API refuse la relance d'un traitement en attente, en
+cours ou déjà réussi avec une réponse `409 Conflict`.
+
 ```powershell
 curl.exe -F "file=@samples/ubl/valid-invoice.xml;type=application/xml" `
   http://127.0.0.1:8000/v1/documents

@@ -9,7 +9,7 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.dispatch import dispatch_job
 from app.intake import save_document
-from app.models import ProcessingJob
+from app.models import ProcessingJob, ProcessingStatus
 from app.schemas import IntakeAccepted, JobDetail
 
 settings = get_settings()
@@ -64,3 +64,31 @@ def get_job(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
     return job
+
+
+@app.post(
+    "/v1/jobs/{job_id}/retry",
+    response_model=JobDetail,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["jobs"],
+)
+def retry_job(
+    job_id: uuid.UUID,
+    db: Annotated[Session, Depends(get_db)],
+    request_settings: Annotated[Settings, Depends(get_settings)],
+) -> ProcessingJob:
+    job = db.scalar(select(ProcessingJob).where(ProcessingJob.id == job_id))
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+    if job.status != ProcessingStatus.FAILED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only a failed job can be retried.",
+        )
+
+    job.status = ProcessingStatus.QUEUED
+    job.last_error = None
+    job.completed_at = None
+    db.commit()
+    db.refresh(job)
+    return dispatch_job(job, request_settings, db)

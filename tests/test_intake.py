@@ -209,6 +209,51 @@ def test_malformed_xml_creates_failed_job() -> None:
     remove_storage_dir(storage_dir)
 
 
+def test_failed_job_can_be_retried_manually() -> None:
+    storage_dir = new_storage_dir()
+    client, _ = build_client(storage_dir)
+    response = client.post(
+        "/v1/documents",
+        files={
+            "file": (
+                "malformed.xml",
+                (SAMPLES / "malformed-invoice.xml").read_bytes(),
+                "application/xml",
+            )
+        },
+    )
+
+    retry_response = client.post(f"/v1/jobs/{response.json()['job_id']}/retry")
+
+    assert retry_response.status_code == 202
+    assert retry_response.json()["status"] == "failed"
+    assert retry_response.json()["attempts"] == 2
+    app.dependency_overrides.clear()
+    remove_storage_dir(storage_dir)
+
+
+def test_successful_job_cannot_be_retried() -> None:
+    storage_dir = new_storage_dir()
+    client, _ = build_client(storage_dir)
+    response = client.post(
+        "/v1/documents",
+        files={
+            "file": (
+                "invoice.xml",
+                (SAMPLES / "valid-invoice.xml").read_bytes(),
+                "application/xml",
+            )
+        },
+    )
+
+    retry_response = client.post(f"/v1/jobs/{response.json()['job_id']}/retry")
+
+    assert retry_response.status_code == 409
+    assert retry_response.json()["detail"] == "Only a failed job can be retried."
+    app.dependency_overrides.clear()
+    remove_storage_dir(storage_dir)
+
+
 def test_upload_rejects_non_xml_file() -> None:
     storage_dir = new_storage_dir()
     client, _ = build_client(storage_dir)

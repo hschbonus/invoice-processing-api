@@ -71,5 +71,36 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
-      - name: Build API image
-        run: docker compose build api
+      - name: Start the complete stack
+        run: docker compose up --detach --build --wait --wait-timeout 120
+
+      - name: Verify asynchronous invoice processing
+        shell: bash
+        run: |
+          response=$(curl --fail --silent --show-error \
+            --form "file=@samples/ubl/valid-invoice.xml;type=application/xml" \
+            http://127.0.0.1:8000/v1/documents)
+          job_id=$(jq --raw-output '.job_id' <<< "$response")
+
+          for attempt in {1..30}; do
+            result=$(curl --fail --silent --show-error \
+              "http://127.0.0.1:8000/v1/jobs/$job_id")
+            job_status=$(jq --raw-output '.status' <<< "$result")
+            if [[ "$job_status" == "succeeded" ]]; then
+              jq --exit-status '.result.validation_status == "valid"' <<< "$result"
+              exit 0
+            fi
+            if [[ "$job_status" == "failed" ]]; then
+              echo "$result"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "Processing job did not complete before the timeout."
+          docker compose logs api worker redis db
+          exit 1
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down --volumes

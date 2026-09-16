@@ -191,7 +191,7 @@ poetry run pytest
 poetry run ruff check .
 ```
 
-La suite compte actuellement 14 tests. La CI exécute également les migrations sur une
+La suite compte actuellement 20 tests. La CI exécute également les migrations sur une
 vraie instance PostgreSQL, construit l'image, démarre toute la stack Docker puis
 vérifie un upload traité par le worker Celery.
 
@@ -228,6 +228,23 @@ Documentation de référence :
 ```powershell
 docker compose down
 ```
+
+## Protection et déploiement
+
+Les trois opérations `/v1/*` sont protégées par le header `X-API-Key` lorsque
+`API_KEY` est configurée. Dans Swagger, utiliser **Authorize** pour renseigner la
+clé communiquée séparément. `/health`, `/docs` et `/openapi.json` restent publics.
+Le mode local conserve son fonctionnement sans clé.
+
+Avec `APP_ENV=production`, une clé d'au moins 32 caractères est obligatoire ;
+générer un secret aléatoire plutôt qu'un mot de passe mémorisable. La clé est stockée
+dans les secrets de l'hébergeur, jamais dans le repo, le portfolio ou une capture.
+Cette protection est un accès partagé à une démo, pas une authentification
+multi-utilisateur : tous ses détenteurs peuvent consulter les traitements connus.
+
+La démo n'est pas encore déployée. La clé seule n'est pas une garantie de sécurité :
+HTTPS, quotas au point d'entrée, restrictions aux données fictives, supervision et
+purge maîtrisée restent à configurer. Voir [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Suivi
 

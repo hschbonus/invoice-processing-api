@@ -11,6 +11,7 @@ from app.dispatch import dispatch_job
 from app.intake import save_document
 from app.models import ProcessingJob, ProcessingStatus
 from app.schemas import IntakeAccepted, JobDetail
+from app.security import require_api_key
 
 settings = get_settings()
 
@@ -34,6 +35,7 @@ def health() -> dict[str, str]:
     response_model=IntakeAccepted,
     status_code=status.HTTP_202_ACCEPTED,
     tags=["documents"],
+    dependencies=[Depends(require_api_key)],
 )
 def create_document(
     file: Annotated[UploadFile, File(description="A structured UBL XML invoice")],
@@ -55,6 +57,7 @@ def create_document(
     "/v1/jobs/{job_id}",
     response_model=JobDetail,
     tags=["jobs"],
+    dependencies=[Depends(require_api_key)],
 )
 def get_job(
     job_id: uuid.UUID,
@@ -71,6 +74,7 @@ def get_job(
     response_model=JobDetail,
     status_code=status.HTTP_202_ACCEPTED,
     tags=["jobs"],
+    dependencies=[Depends(require_api_key)],
 )
 def retry_job(
     job_id: uuid.UUID,

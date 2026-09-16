@@ -242,7 +242,9 @@ dans les secrets de l'hébergeur, jamais dans le repo, le portfolio ou une captu
 Cette protection est un accès partagé à une démo, pas une authentification
 multi-utilisateur : tous ses détenteurs peuvent consulter les traitements connus.
 
-La démo n'est pas encore déployée. La clé seule n'est pas une garantie de sécurité :
+Le déploiement est différé (budget 0 €). La démonstration tourne localement avec Docker ;
+vidéo et supports portfolio restent à produire. Aucune API hébergée n'est disponible.
+La clé seule n'est pas une garantie de sécurité :
 HTTPS, quotas au point d'entrée, restrictions aux données fictives, supervision et
 purge maîtrisée restent à configurer. Voir [DEPLOYMENT.md](DEPLOYMENT.md).
 

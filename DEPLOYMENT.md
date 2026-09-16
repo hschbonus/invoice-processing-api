@@ -1,8 +1,14 @@
 # Déploiement de la démonstration — P2.15
 
 État au 16 septembre 2026 : démonstration locale validée par Hervé sur les trois
-échantillons ; protection par clé implémentée et testée ; hébergement à choisir.
-P2.15 reste ouvert. Aucun service externe ni abonnement n'a été créé.
+échantillons ; protection par clé implémentée et testée. P2.15 est **différé**, non
+livré, par décision d'Hervé : budget 0 €, aucun abonnement ni essai nécessitant une
+carte bancaire. Aucun service externe n'a été créé.
+
+La publication avance via P2.16 : démonstration Docker locale en visio, vidéo réelle
+de 60–90 secondes, captures et cas d'étude portfolio. Aucun lien ne doit être présenté
+comme une API hébergée. Les options ci-dessous restent disponibles pour une reprise
+éventuelle ; aucune nouvelle infrastructure ni couche de stockage à ajouter maintenant.
 
 ## Contrat de démonstration
 
